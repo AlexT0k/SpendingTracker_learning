@@ -1,24 +1,28 @@
 # Project Plan
 
-Create a simple Personal Expense Tracker. Use a light-green "financial" color motif, and use specific colors for categories (e.g., Red for Food, Blue for Transport). Use Material 3 for design elements. Display a "Total Spent" card at the very top. Below it, show a scrollable list of recent transactions. A Floating Action Button (FAB) opens a BottomSheet or new screen to add an expense.
+Add advanced features to the existing Personal Expense Tracker: 
+1. Allow users to create custom categories (transition from static enum to dynamic list).
+2. Tapping the "Total Spent" card displays a breakdown of spending by category (e.g., in a dialog or new screen).
+3. Introduce time-based filtering: separate total spending counters for each month, and the ability to view total spending for a specific period (e.g., year, week, season).
 
 ## Project Brief
 
-# Project Brief: Personal Expense Tracker
+# Personal Expense Tracker - Project Brief
 
 ## Features
-1. **Financial Dashboard:** A prominent "Total Spent" summary card displayed at the top of the main screen to provide immediate financial awareness.
-2. **Recent Transactions List:** A scrollable, chronologically ordered list of recent expenses. Transactions are visually distinguished using category-specific color coding (e.g., Red for Food, Blue for Transport).
-3. **Add Expense Flow:** A Floating Action Button (FAB) that triggers a bottom sheet or a dedicated adaptive screen to quickly input new expenses (amount, category, and optional note).
+1. **Dynamic Custom Categories**: Allow users to create and manage personalized expense categories, replacing predefined static options to better fit their tracking needs.
+2. **Category Spending Breakdown**: Provide an interactive "Total Spent" dashboard card that, when tapped, reveals a detailed view (e.g., a dialog or separate screen) displaying expenses grouped by category.
+3. **Time-Based Filtering**: Enable users to analyze their spending over time by introducing specific monthly totals and flexible custom period filters (e.g., weekly, seasonal, or yearly views).
 
 ## High-Level Tech Stack
-* **Language:** Kotlin
-* **UI Framework:** Jetpack Compose with Material 3 (implementing a custom light-green "financial" color motif).
-* **Navigation & Adaptive Strategy:** **Jetpack Navigation 3** (state-driven navigation) and the **Compose Material Adaptive** library to ensure fluid, state-based transitions and multi-screen support.
-* **Architecture & Concurrency:** ViewModel for UI state management and Kotlin Coroutines for asynchronous tasks. *(Note: Persistence layers like Room or DataStore are excluded for this MVP phase per project requirements).*
+* **Language**: Kotlin
+* **UI Framework**: Jetpack Compose
+* **Navigation**: Jetpack Navigation 3 (Strictly state-driven navigation for managing multiple screens and dialogs)
+* **Adaptive Layouts**: Compose Material 3 Adaptive library (for responsive layouts and multi-pane support across different screen sizes)
+* **Architecture & Concurrency**: MVVM (Model-View-ViewModel) architecture leveraging Android `ViewModel`, Kotlin Coroutines, and `StateFlow` for lightweight, reactive state management in-memory.
 
 ## Implementation Steps
-**Total Duration:** 9m 41s
+**Total Duration:** 19m 42s
 
 ### Task_1_StateAndViewModel: Define Expense model, Category enum with colors, and ViewModel to manage list of expenses and calculate total spent.
 - **Status:** COMPLETED
@@ -55,4 +59,23 @@ Create a simple Personal Expense Tracker. Use a light-green "financial" color mo
   - build pass
   - app does not crash
 - **Duration:** 2m 56s
+
+### Task_5_CustomCategoriesAndBreakdown: Refactor Category to a dynamic list in ViewModel. Update Add Expense form for custom category creation. Make 'Total Spent' card clickable using Navigation 3 to open a Category Breakdown screen/dialog.
+- **Status:** COMPLETED
+- **Updates:** Custom categories implemented using dynamic lists in ViewModel. Add Expense form now allows category creation with color picker. Total Spent card is now clickable and opens a CategoryBreakdownDialog showing spending per category.
+- **Acceptance Criteria:**
+  - Users can create custom categories
+  - Tapping 'Total Spent' shows expense breakdown by category
+- **Duration:** 2m 50s
+
+### Task_6_TimeFilteringAndVerify: Add time-based filtering (monthly, custom periods) to ViewModel. Update Dashboard UI with time filter controls. Run and Verify application stability, instruct critic_agent to verify application stability, confirm alignment with requirements, and report critical UI issues.
+- **Status:** COMPLETED
+- **Updates:** Implemented TimeFiltering (Week, Month, Year, All) with UI chips on Dashboard. Updated ExpenseViewModel to filter expenses dynamically based on timestamp. Critic Agent verified stability, Custom Categories, Category Breakdown, and Time Filtering features successfully. No critical UI issues.
+- **Acceptance Criteria:**
+  - UI allows selecting specific time periods
+  - Dashboard spending accurately reflects the selected period
+  - make sure all existing tests pass
+  - build pass
+  - app does not crash
+- **Duration:** 7m 11s
 

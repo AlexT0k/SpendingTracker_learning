@@ -22,10 +22,10 @@ class MainActivity : ComponentActivity() {
         
         // Add some mock data if empty
         if (expenseViewModel.uiState.value.expenses.isEmpty()) {
-            expenseViewModel.addExpense("Groceries", 85.50, Category.FOOD)
-            expenseViewModel.addExpense("Bus Ticket", 2.50, Category.TRANSPORT)
-            expenseViewModel.addExpense("Movie Ticket", 15.00, Category.ENTERTAINMENT)
-            expenseViewModel.addExpense("Electric Bill", 60.00, Category.UTILITIES)
+            expenseViewModel.addExpense("Groceries", 85.50, Category.defaultCategories[0])
+            expenseViewModel.addExpense("Bus Ticket", 2.50, Category.defaultCategories[1])
+            expenseViewModel.addExpense("Movie Ticket", 15.00, Category.defaultCategories[2])
+            expenseViewModel.addExpense("Electric Bill", 60.00, Category.defaultCategories[3])
         }
         
         enableEdgeToEdge()

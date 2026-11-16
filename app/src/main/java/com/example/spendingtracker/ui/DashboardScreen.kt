@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.clickable
 import com.example.spendingtracker.model.Expense
 import com.example.spendingtracker.viewmodel.ExpenseViewModel
 import java.text.NumberFormat
@@ -39,6 +40,7 @@ fun DashboardScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showBottomSheet by remember { mutableStateOf(false) }
+    var showBreakdownDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -54,8 +56,27 @@ fun DashboardScreen(
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
-            TotalSpentCard(totalSpent = uiState.totalSpent)
-            Spacer(modifier = Modifier.height(24.dp))
+            TotalSpentCard(
+                totalSpent = uiState.totalSpent,
+                onClick = { showBreakdownDialog = true }
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Time Filter Row
+            androidx.compose.foundation.lazy.LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(com.example.spendingtracker.viewmodel.TimeFilter.entries.toTypedArray()) { filter ->
+                    FilterChip(
+                        selected = uiState.timeFilter == filter,
+                        onClick = { viewModel.setTimeFilter(filter) },
+                        label = { Text(filter.displayName) }
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            
             Text(
                 text = "Recent Transactions",
                 style = MaterialTheme.typography.titleLarge,
@@ -82,6 +103,13 @@ fun DashboardScreen(
         }
     }
 
+    if (showBreakdownDialog) {
+        CategoryBreakdownDialog(
+            expenses = uiState.expenses,
+            onDismiss = { showBreakdownDialog = false }
+        )
+    }
+
     if (showBottomSheet) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
@@ -89,9 +117,13 @@ fun DashboardScreen(
             sheetState = sheetState
         ) {
             AddExpenseForm(
-                onAddExpense = { title, amount, category ->
-                    viewModel.addExpense(title, amount, category)
+                categories = uiState.categories,
+                onAddExpense = { title, amount, category, date ->
+                    viewModel.addExpense(title, amount, category, date)
                     showBottomSheet = false
+                },
+                onAddCategory = { name, color ->
+                    viewModel.addCategory(name, color)
                 },
                 onCancel = { showBottomSheet = false }
             )
@@ -100,9 +132,11 @@ fun DashboardScreen(
 }
 
 @Composable
-fun TotalSpentCard(totalSpent: Double) {
+fun TotalSpentCard(totalSpent: Double, onClick: () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer
@@ -195,13 +229,28 @@ fun TransactionItem(expense: Expense) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddExpenseForm(
-    onAddExpense: (String, Double, Category) -> Unit,
+    categories: List<Category>,
+    onAddExpense: (String, Double, Category, Long) -> Unit,
+    onAddCategory: (String, androidx.compose.ui.graphics.Color) -> Unit,
     onCancel: () -> Unit
 ) {
     var title by remember { mutableStateOf("") }
     var amountText by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf(Category.FOOD) }
+    var selectedCategory by remember { mutableStateOf(categories.firstOrNull()) }
     var expanded by remember { mutableStateOf(false) }
+    var showAddCategoryDialog by remember { mutableStateOf(false) }
+    var selectedDate by remember { mutableStateOf(System.currentTimeMillis()) }
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    if (showAddCategoryDialog) {
+        AddCategoryDialog(
+            onDismiss = { showAddCategoryDialog = false },
+            onSave = { name, color ->
+                onAddCategory(name, color)
+                showAddCategoryDialog = false
+            }
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -232,7 +281,7 @@ fun AddExpenseForm(
             onExpandedChange = { expanded = it }
         ) {
             OutlinedTextField(
-                value = selectedCategory.displayName,
+                value = selectedCategory?.displayName ?: "",
                 onValueChange = {},
                 readOnly = true,
                 label = { Text("Category") },
@@ -245,7 +294,7 @@ fun AddExpenseForm(
                 expanded = expanded,
                 onDismissRequest = { expanded = false }
             ) {
-                Category.entries.forEach { category ->
+                categories.forEach { category ->
                     DropdownMenuItem(
                         text = { Text(category.displayName) },
                         onClick = {
@@ -254,6 +303,56 @@ fun AddExpenseForm(
                         }
                     )
                 }
+                HorizontalDivider()
+                DropdownMenuItem(
+                    text = { Text("Add new category...", fontWeight = FontWeight.Bold) },
+                    onClick = {
+                        expanded = false
+                        showAddCategoryDialog = true
+                    }
+                )
+            }
+        }
+        
+        val dateString = SimpleDateFormat("MMM dd, yyyy", Locale.US).format(Date(selectedDate))
+        Box(modifier = Modifier.fillMaxWidth().clickable { showDatePicker = true }) {
+            OutlinedTextField(
+                value = dateString,
+                onValueChange = {},
+                readOnly = true,
+                enabled = false,
+                label = { Text("Date") },
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                    disabledBorderColor = MaterialTheme.colorScheme.outline,
+                    disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            )
+        }
+        
+        if (showDatePicker) {
+            val datePickerState = rememberDatePickerState(initialSelectedDateMillis = selectedDate)
+            DatePickerDialog(
+                onDismissRequest = { showDatePicker = false },
+                confirmButton = {
+                    TextButton(onClick = { 
+                        selectedDate = datePickerState.selectedDateMillis ?: System.currentTimeMillis()
+                        showDatePicker = false 
+                    }) {
+                        Text("OK")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDatePicker = false }) {
+                        Text("Cancel")
+                    }
+                }
+            ) {
+                DatePicker(state = datePickerState)
             }
         }
 
@@ -268,14 +367,138 @@ fun AddExpenseForm(
             Button(
                 onClick = {
                     val amount = amountText.toDoubleOrNull() ?: 0.0
-                    if (title.isNotBlank() && amount > 0) {
-                        onAddExpense(title, amount, selectedCategory)
+                    if (title.isNotBlank() && amount > 0 && selectedCategory != null) {
+                        onAddExpense(title, amount, selectedCategory!!, selectedDate)
                     }
                 },
-                enabled = title.isNotBlank() && amountText.toDoubleOrNull()?.let { it > 0 } == true
+                enabled = title.isNotBlank() && amountText.toDoubleOrNull()?.let { it > 0 } == true && selectedCategory != null
             ) {
                 Text("Save")
             }
         }
     }
+}
+
+@Composable
+fun AddCategoryDialog(
+    onDismiss: () -> Unit,
+    onSave: (String, androidx.compose.ui.graphics.Color) -> Unit
+) {
+    var categoryName by remember { mutableStateOf("") }
+    val colors = listOf(
+        androidx.compose.ui.graphics.Color(0xFFF44336),
+        androidx.compose.ui.graphics.Color(0xFFE91E63),
+        androidx.compose.ui.graphics.Color(0xFF9C27B0),
+        androidx.compose.ui.graphics.Color(0xFF3F51B5),
+        androidx.compose.ui.graphics.Color(0xFF2196F3),
+        androidx.compose.ui.graphics.Color(0xFF009688),
+        androidx.compose.ui.graphics.Color(0xFF4CAF50),
+        androidx.compose.ui.graphics.Color(0xFFFF9800),
+        androidx.compose.ui.graphics.Color(0xFF795548)
+    )
+    var selectedColor by remember { mutableStateOf(colors[0]) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("New Category") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = categoryName,
+                    onValueChange = { categoryName = it },
+                    label = { Text("Name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Select Color", style = MaterialTheme.typography.labelLarge)
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    colors.take(5).forEach { color ->
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(color)
+                                .clickable { selectedColor = color }
+                                .padding(2.dp)
+                                .background(
+                                    if (selectedColor == color) androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f)
+                                    else androidx.compose.ui.graphics.Color.Transparent,
+                                    CircleShape
+                                )
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (categoryName.isNotBlank()) {
+                        onSave(categoryName, selectedColor)
+                    }
+                },
+                enabled = categoryName.isNotBlank()
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun CategoryBreakdownDialog(
+    expenses: List<Expense>,
+    onDismiss: () -> Unit
+) {
+    val breakdown = expenses.groupBy { it.category }
+        .mapValues { entry -> entry.value.sumOf { it.amount } }
+        .toList()
+        .sortedByDescending { it.second }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Category Breakdown") },
+        text = {
+            if (breakdown.isEmpty()) {
+                Text("No expenses yet.")
+            } else {
+                LazyColumn {
+                    items(breakdown) { (category, total) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clip(CircleShape)
+                                    .background(category.color)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(category.displayName, modifier = Modifier.weight(1f))
+                            val formattedTotal = NumberFormat.getCurrencyInstance(Locale.US).format(total)
+                            Text(formattedTotal, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
 }
